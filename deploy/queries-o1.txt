@@ -1,0 +1,8 @@
+# O1（内存与 GC）附加查询。格式与 queries-red.txt 相同，用 promsteps 对 runs/o1-* 逐阶段查询。
+# GC 次数与 GC CPU 用窗口内的增量/速率；RSS 与堆对象取窗口内的最大值和平均值。
+gc_cycles           increase(go_gc_cycles_total{job="enrolld"}[${window}])
+gc_cpu_ms_per_s     1000 * rate(go_gc_cpu_seconds_total{job="enrolld"}[${window}])
+rss_max_mb          max_over_time(process_resident_memory_bytes{job="enrolld"}[${window}]) / 1048576
+rss_avg_mb          avg_over_time(process_resident_memory_bytes{job="enrolld"}[${window}]) / 1048576
+heap_max_mb         max_over_time(go_heap_objects_bytes{job="enrolld"}[${window}]) / 1048576
+cpu_cores           rate(process_cpu_seconds_total{job="enrolld"}[${window}])
