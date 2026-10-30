@@ -1,4 +1,4 @@
-# 实验 2 记录：第 <组号> 组
+# 实验 2 记录：第 18 组
 
 评分时依据本文件和 `runs/` 中的原始数据核对。本文件中的每一个数值，都须能在某个 `runs/<名字>/` 的文件中找到：表格用 `scripts/table.sh` 生成后粘贴，其他数值注明出处（例如“`runs/r1-pool4/red.csv` 第 6 阶段”）。不要只贴截图。将 `<填写>` 替换为本组的内容。
 
@@ -8,56 +8,72 @@
 
 | 项 | 内容 |
 |---|---|
-| 小组 | 第 <组号> 组 |
-| 仓库地址 | <https://github.com/…> |
-| 主机 | <云厂商与规格名，例如某云的 2 vCPU 4 GB 通用型；或学校的虚拟机> |
-| CPU | <`lscpu` 的 Model name；vCPU 数；`lscpu -e` 里每个 CPU 对应的 CORE> |
-| 内存 | <`free -m` 的 total> |
-| 数据目录所在的盘 | <`findmnt -T data` 的 SOURCE 和 FSTYPE；磁盘类型，如“通用型 SSD 云盘 40 GB”> |
-| 操作系统与内核 | <`/etc/os-release` 的 PRETTY_NAME；`uname -r`> |
-| Go、Prometheus、node_exporter | <`go version`；`tools/prometheus --version` 第一行；`tools/node_exporter --version` 第一行> |
-| 分核 | enrolld：<如 1>；loadgen、Prometheus、node_exporter：<如 0> |
+| 小组 | 第 18 组 |
+| 仓库地址 | <https://github.com/xXiao-T/ops-lab2-18> |
+| 主机 | 华为云 ECS，`x1.2u.2g`（2 vCPU / 2 GiB），可用区 `cn-east-3c`，Ubuntu 20.04 server 64bit 镜像 |
+| CPU | Model name：`General Purpose Processor`；2 个 vCPU；`lscpu -e` 显示 CPU 0 与 CPU 1 的 CORE 均为 0（同一物理核的两个超线程，无法分到不同 CORE） |
+| 内存 | `free -m` total = 1778 MiB |
+| 数据目录所在的盘 | `findmnt -T data`：`/dev/vda1`，`ext4`；40 GiB 云硬盘（`lsblk` 为 40G，ROTA=1；实例内未暴露云盘规格名） |
+| 操作系统与内核 | `Ubuntu 20.04.6 LTS`；`5.4.0-216-generic` |
+| Go、Prometheus、node_exporter | `go1.26.9 linux/amd64`；`prometheus, version 3.13.4`；`node_exporter, version 1.12.1` |
+| 分核 | enrolld：1；loadgen、Prometheus、node_exporter：0 |
 
 ## 2. 任务 0：基线
 
 `bin/enrolld -bench-fsync 2000` 连续运行三次的输出：
 
 ```text
-<粘贴三次的输出>
+===== run 1 =====
+fsync 次数 2000，总耗时 2.37 s，数据目录 data
+fsync 耗时（毫秒）：mean 1.179  p50 1.121  p90 1.348  p99 2.259  max 4.374
+按平均值推算，一个写者串行 fsync 每秒最多约 848 次（= 1000 / 1.179）
+===== run 2 =====
+fsync 次数 2000，总耗时 2.41 s，数据目录 data
+fsync 耗时（毫秒）：mean 1.187  p50 1.122  p90 1.332  p99 2.365  max 6.575
+按平均值推算，一个写者串行 fsync 每秒最多约 843 次（= 1000 / 1.187）
+===== run 3 =====
+fsync 次数 2000，总耗时 2.38 s，数据目录 data
+fsync 耗时（毫秒）：mean 1.182  p50 1.122  p90 1.354  p99 2.247  max 3.314
+按平均值推算，一个写者串行 fsync 每秒最多约 846 次（= 1000 / 1.182）
 ```
 
-按平均值计算，单个写者串行 fsync 每秒最多约 <填写> 次。三次之间相差多少？<填写>
+按平均值计算，单个写者串行 fsync 每秒最多约 **846** 次（三次均值的平均为 1.1827 ms，$1000/1.1827 \approx 845.5$）。三次之间相差 0.008 ms（1.179～1.187 ms，约 0.7%），说明这块云盘的 fsync 延迟很稳定。
 
-空载和运行 fsync 测试时各工具的读数（各观察 5 秒以上，填写典型值）：
+空载和运行 fsync 测试时各工具的读数（各观察 10 秒以上，填写典型值；均忽略工具输出的第一行“开机以来平均值”）：
 
 | 工具与列 | 空载 | 运行 `-bench-fsync` 时 | 该列的含义 |
 |---|---|---|---|
-| `vmstat -w 1`：r、b | <填写> | <填写> | <填写> |
-| `vmstat -w 1`：us、sy、id、wa、st | <填写> | <填写> | <填写> |
-| `iostat -dx 1 <盘>`：w/s、wkB/s | <填写> | <填写> | <填写> |
-| `iostat -dx 1 <盘>`：w_await、f/s、f_await | <填写> | <填写> | <填写> |
-| `iostat -dx 1 <盘>`：aqu-sz、%util | <填写> | <填写> | <填写> |
+| `vmstat -w 1`：r、b | r=0，b=0（偶见 b=1） | r=0–1，b=1 | r：可运行（等待 CPU）的进程数；b：处于不可中断睡眠、通常在等 I/O 的进程数 |
+| `vmstat -w 1`：us、sy、id、wa、st | 0–1、0–1、99–100、0–2、0（%） | 0–1、2–4、50–52、45–47、0（%） | us 用户态、sy 内核态、id 空闲、wa 等 I/O、st 被宿主机偷走的时间占比 |
+| `iostat -dx 1 <盘>`：w/s、wkB/s | 0–2、0–108（偶有后台写） | 2439–2559、13280–13980 | 每秒完成的写次数；每秒写入的 KiB 数 |
+| `iostat -dx 1 <盘>`：w_await、f/s、f_await | 0、-、-（无写） | 0.37–0.38 ms、-、- | 每次写的平均等待时间；每秒 flush 次数；每次 flush 的平均耗时（本机 sysstat 12.2.0 与 5.4 内核不输出 f/s、f_await） |
+| `iostat -dx 1 <盘>`：aqu-sz、%util | 0.00、0–3.6% | 0.00、97.6–100% | 平均请求队列长度；设备处于忙碌状态的时间比例 |
 
-运行 fsync 测试时，CPU 是否繁忙？哪几列表明存在等待？<填写>
+运行 fsync 测试时，**CPU 并不繁忙**：`us+sy` 只有约 2～5%，`id` 仍有约 50%。等待体现在 `vmstat` 的 **b=1** 和 **wa≈45%～47%**，以及 `iostat` 的 **%util≈100%**；这说明进程被磁盘 fsync 阻塞，而不是在等 CPU。`iostat` 的 `aqu-sz` 在这台虚拟机上始终为 0，`f/s`、`f_await` 也不显示——虚拟化层没有把这些字段完整暴露出来，因此本报告用 `vmstat` 的 `b/wa` 与 `iostat` 的 `w/s、w_await、%util` 判断磁盘饱和，flush 次数在任务 3 用服务端 `fsync_per_s` 代替。
 
 ## 3. 任务 1：指标流水线
 
-两个抓取目标的状态（`curl -s 127.0.0.1:9090/api/v1/targets` 中两处 `"health"` 的值）：<填写>
+两个抓取目标的状态（`curl -s 127.0.0.1:9090/api/v1/targets` 中两处 `"health"` 的值）：enrolld = `up`，node = `up`。
 
 本组编写的四条查询（与 `deploy/queries-red.txt` 一致）：
 
 ```text
-server_rps          <填写>
-server_error_rate   <填写>
-server_p99_ms       <填写>
-server_slo_good     <填写>
+server_rps          sum(rate(http_requests_total{route="${route}"}[${window}]))
+server_error_rate   sum(rate(http_requests_total{route="${route}",code=~"5.."}[${window}])) / sum(rate(http_requests_total{route="${route}"}[${window}])) or vector(0)
+server_p99_ms       1000 * histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket{route="${route}"}[${window}])))
+server_slo_good     sum(rate(http_request_duration_seconds_bucket{route="${route}",code="200",le="${slo}"}[${window}])) / sum(rate(http_request_duration_seconds_count{route="${route}"}[${window}]))
 ```
 
 `runs/t1-light` 的数据（`scripts/table.sh runs/t1-light ok_rps mean_ms p99_ms server_rps server_mean_ms server_p99_ms cpu_ms_per_req db_query_mean_ms`）：
 
-<粘贴表格>
+| step | target_rps | ok_rps | mean_ms | p99_ms | server_rps | server_mean_ms | server_p99_ms | cpu_ms_per_req | db_query_mean_ms |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | 0 | 0.0 | - | - | 0 | NaN | NaN | +Inf | NaN |
+| 2 | 50 | 50.5 | 11.62 | 13.13 | 51.75 | 10.7813 | 19.9 | 0.637786 | 10.322 |
+| 3 | 100 | 97.8 | 11.70 | 14.26 | 95.3333 | 10.9099 | 19.9043 | 0.595424 | 10.4233 |
+| all | - | 74.2 | 11.67 | 14.10 | - | - | - | - | - |
 
-从这次实验读出：每次查询实际占用连接 <填写> ms（`db_query_mean_ms`）；每个请求消耗的 CPU <填写> ms（`cpu_ms_per_req`，取 100 请求/秒的阶段）。
+从这次实验读出：每次查询实际占用连接 **10.4233 ms**（`db_query_mean_ms`，100 请求/秒阶段，`runs/t1-light/red.csv` 第 3 阶段）；每个请求消耗的 CPU **0.595424 ms**（`cpu_ms_per_req`，同阶段）。空载阶段的 `server_p99_ms`、`server_slo_good` 为 NaN/空，是因为该阶段没有请求，直方图没有样本，属于预期现象；50 与 100 请求/秒阶段 `server_error_rate=0`、`server_slo_good=1`。
 
 ## 4. 任务 2：读路径
 
@@ -65,12 +81,16 @@ server_slo_good     <填写>
 
 | 资源 | 容量 | 每个请求占用（数据来源） | 推算的上限（请求/秒） |
 |---|---|---|---|
-| 连接池 | <`-pool`> 个连接 | <填写> ms | <填写> |
-| CPU | enrolld 的 <填写> 个核 | <填写> ms | <填写> |
+| 连接池 | `-pool` = 4 个连接 | 10.4233 ms（`runs/t1-light/red.csv` 第 3 阶段 `db_query_mean_ms`） | $4 / 0.0104233 \approx 384$ |
+| CPU | enrolld 的 1 个核（`GOMAXPROCS=1`，绑定 CPU 1） | 0.595424 ms（同阶段 `cpu_ms_per_req`） | $1 / 0.000595424 \approx 1680$ |
 
-先达到上限的是：<填写>。预计从多少请求/秒起，客户端 p99 超过 50 ms：<填写>，理由：<填写>
+先达到上限的是：**连接池**（384 请求/秒，远低于 CPU 的 1680 请求/秒）。
 
-R1 的到达率（`scripts/rates.sh <较小的上限>` 的输出）：<填写>
+预计从多少请求/秒起，客户端 p99 超过 50 ms：**约 340 请求/秒（约 0.89 × 池上限）**。
+
+理由：100 请求/秒时池利用率 $\rho = 100 \times 0.0104233 / 4 \approx 0.26$，实测 `pool_wait_p99_ms` = 2.198 ms（`runs/t1-light/red.csv` 第 3 阶段）。若把等待分位数近似看作随 $\rho/(1-\rho)$ 增长，则 p99 从 2.198 ms 涨到 50 ms 需要约 22.7 倍，对应 $\rho \approx 0.89$，即 $0.89 \times 384 \approx 340$ 请求/秒。这个估计没有考虑模拟数据库的服务时间近似确定（`db-ms=10`，排队增量以 10 ms 为台阶），实际拐点可能更靠近上限；预测错误不扣分，R1 的实测会检验它。
+
+R1 的到达率（`scripts/rates.sh 384` 的输出）：**77,154,230,269,307,346,384,422,461**（0.2～1.2 倍，共 9 个阶段）。
 
 ### 4.2 R1：`-pool 4`
 

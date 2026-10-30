@@ -1,0 +1,2 @@
+SOURCE    FSTYPE OPTIONS
+/dev/vda1 ext4   rw,relatime,errors=remount-ro

@@ -1,0 +1,3 @@
+NAME   SIZE TYPE MOUNTPOINT ROTA MODEL
+vda     40G disk               1 
+└─vda1  40G part /             1 
