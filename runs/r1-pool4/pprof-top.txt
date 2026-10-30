@@ -1,0 +1,24 @@
+File: enrolld
+Build ID: 821fb69a512e3f03eceb82015edc80d51f6337eb
+Type: cpu
+Time: 2026-10-30 13:57:16 CST
+Duration: 20s, Total samples = 2.76s (13.80%)
+Showing nodes accounting for 2.58s, 93.48% of 2.76s total
+Dropped 70 nodes (cum <= 0.01s)
+Showing top 15 nodes out of 51
+      flat  flat%   sum%        cum   cum%
+     2.38s 86.23% 86.23%      2.38s 86.23%  main.spin
+     0.13s  4.71% 90.94%      0.13s  4.71%  internal/runtime/syscall/linux.Syscall6
+     0.02s  0.72% 91.67%      0.02s  0.72%  internal/poll.convertErr (inline)
+     0.01s  0.36% 92.03%      0.02s  0.72%  encoding/json.structEncoder.encode
+     0.01s  0.36% 92.39%      0.06s  2.17%  net/http.(*conn).readRequest
+     0.01s  0.36% 92.75%      0.07s  2.54%  runtime.mcall
+     0.01s  0.36% 93.12%      0.03s  1.09%  runtime.newobject
+     0.01s  0.36% 93.48%      0.06s  2.17%  runtime.park_m
+         0     0% 93.48%      0.05s  1.81%  bufio.(*Reader).Peek
+         0     0% 93.48%      0.05s  1.81%  bufio.(*Reader).fill
+         0     0% 93.48%      0.09s  3.26%  bufio.(*Writer).Flush
+         0     0% 93.48%      0.02s  0.72%  encoding/json.(*Encoder).Encode
+         0     0% 93.48%      0.02s  0.72%  encoding/json.(*encodeState).marshal
+         0     0% 93.48%      0.02s  0.72%  encoding/json.(*encodeState).reflectValue
+         0     0% 93.48%      0.06s  2.17%  internal/poll.(*FD).Read
