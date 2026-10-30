@@ -1,0 +1,23 @@
+# O3：读路径 SLO 的燃烧率告警（L-08 第 21 页）。
+# SLO：30 天内 99% 的读请求在 50 ms 内成功返回。
+# 燃烧率 = 当前错误率 / (1 - SLO)；这里用 1 分钟窗口，阈值 14.4 倍，
+# 约等于 1 小时耗尽 2% 的 30 天错误预算（14.4 × 1/720 ≈ 2%）。
+groups:
+  - name: enrolld-slo
+    rules:
+      - alert: EnrolldReadSLOBurnRateHigh
+        expr: |
+          (
+            1 - (
+              sum(rate(http_request_duration_seconds_bucket{route="/api/courses/{id}",code="200",le="0.05"}[1m]))
+              /
+              sum(rate(http_request_duration_seconds_count{route="/api/courses/{id}"}[1m]))
+            )
+          ) > 0.144
+        for: 30s
+        labels:
+          severity: page
+          service: enrolld
+        annotations:
+          summary: "enrolld 读路径 SLO 燃烧率过高"
+          description: "1 分钟窗口内错误预算燃烧率超过 14.4×（约 1 小时耗尽 2% 的 30 天预算）"

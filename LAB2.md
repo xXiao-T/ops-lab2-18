@@ -279,7 +279,7 @@ t1-light 第 2 阶段：客户端平均 11.62 ms，服务端平均 10.7813 ms（
 |---|---|
 | O1 内存与 GC | 已做（见 7.1） |
 | O2 网络 | 未做（本组只有一台云主机，不满足两台主机同 VPC 的条件） |
-| O3 告警与看板 | 未做 |
+| O3 告警与看板 | 已做（见 7.2） |
 | O4 迁移到小组项目 | 未做 |
 
 ### 7.1 O1 内存与 GC
@@ -294,6 +294,20 @@ t1-light 第 2 阶段：客户端平均 11.62 ms，服务端平均 10.7813 ms（
 | GOGC=400 | 641.7 | 8.00 | 23.52 | 13.21 | 0.0932 | 1.56 / 3.47 |
 
 与预测对照：GC 次数减少 75%、GC CPU 减少 70%、RSS 增加 82%、堆峰值增加约 10 倍，方向和预测一致；但 p99 没有下降，反而从 2.81 ms 升到 3.47 ms（+0.66 ms），平均延迟基本不变（1.58→1.56 ms）。原因是 GOGC=400 用更大的堆换更少的 GC：每次 GC 要扫描的对象更多，单次停顿变长，尾部延迟因此略差；总 GC CPU 下降 70%，进程 CPU 从 0.113 降到 0.093 个核。代价是 RSS 多约 10.6 MB（在此主机 1778 MiB 内存下微不足道），收益是 CPU 与分配吞吐；如果目标是 p99 而不是 CPU，应保留较小的 GOGC，或用 `GOMEMLIMIT`/更细的 GC 调优控制停顿。这与 L-06 第 12 页 JVM 的堆与 GC 同理：增大堆/新生代能减少 GC 次数和总 GC 开销，但单次回收更久，停顿与内存占用上升；JVM 的 G1/ZGC 以暂停时间为目标，而 Go 的 GOGC 只规定堆增长比例，不直接约束停顿。
+
+### 7.2 O3 告警与看板
+
+**告警规则**：`deploy/rules.yml`，在 `deploy/prometheus.yml` 中用 `rule_files: [rules.yml]` 引用。规则 `EnrolldReadSLOBurnRateHigh` 用 1 分钟窗口计算读路径 SLO 的燃烧率：
+
+```text
+(1 - sum(rate(http_request_duration_seconds_bucket{route="/api/courses/{id}",code="200",le="0.05"}[1m]))
+   / sum(rate(http_request_duration_seconds_count{route="/api/courses/{id}"}[1m]))) > 0.144
+for: 30s
+```
+
+阈值 0.144 对应燃烧率 14.4×（约 1 小时耗尽 2% 的 30 天预算），`severity: page`。**触发记录**：重启 Prometheus 载入规则后，以 422 请求/秒过载读路径（`bin/loadgen -url http://127.0.0.1:8080/api/courses/1 -rates 422 -step 150s`），规则在 14:31:23 进入 pending、14:31:53 变为 firing；`runs/o3-alert/alerts.json` 记录 `state=firing`、错误比例 0.9906（燃烧率约 99×，`runs/o3-alert/burn.json` 为 0.9916），`runs/o3-alert/rules.json` 记录规则 `health=ok`。过载结束后告警自动恢复。注意：为载入规则重启了 Prometheus，`/dev/shm` 中的时序数据已清空，但所有 `runs/*/red.csv`、`use.csv` 已在实验结束时落盘，不影响报告中的数据核对。
+
+**看板**：`deploy/dashboard.md` 给出三行九格的每一格查询，`deploy/grafana-dashboard.json` 是可直接导入 Grafana 的 9 面板看板（数据源选 Prometheus）。三行分别是：业务（选课成功率、读路径 SLI、在途/goroutine）、服务 RED（按接口 QPS、5xx 比例、p50/p99、inflight/连接池）、资源 USE（CPU、内存、磁盘 util/await/IOPS）。排障自上而下：先看业务成功率，再看哪个接口在排队，最后看哪个资源先饱和；容量规划自下而上：先算资源上限再换算业务量。
 
 ## 8. 成员分工
 

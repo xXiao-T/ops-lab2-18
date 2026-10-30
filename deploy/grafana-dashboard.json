@@ -1,0 +1,82 @@
+{
+  "title": "enrolld · 三行九格",
+  "uid": "enrolld-3x3",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-15m", "to": "now" },
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
+  "panels": [
+    {
+      "id": 1, "type": "timeseries", "title": "业务 · 选课成功率",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum(rate(http_requests_total{route=\"/api/enroll\",code=~\"2..\"}[5m])) / sum(rate(http_requests_total{route=\"/api/enroll\"}[5m]))", "legendFormat": "选课成功率" }]
+    },
+    {
+      "id": 2, "type": "timeseries", "title": "业务 · 读路径 SLI（≤50 ms 成功占比）",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum(rate(http_request_duration_seconds_bucket{route=\"/api/courses/{id}\",code=\"200\",le=\"0.05\"}[5m])) / sum(rate(http_request_duration_seconds_count{route=\"/api/courses/{id}\"}[5m]))", "legendFormat": "server_slo_good" }]
+    },
+    {
+      "id": 3, "type": "timeseries", "title": "业务 · 在途请求 / goroutine",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum(http_inflight_requests)", "legendFormat": "在途请求" },
+        { "refId": "B", "expr": "sum(go_goroutines{job=\"enrolld\"})", "legendFormat": "goroutines" }
+      ]
+    },
+    {
+      "id": 4, "type": "timeseries", "title": "服务 · 按接口 QPS（RED 的 R）",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum by (route) (rate(http_requests_total[5m]))", "legendFormat": "{{route}}" }]
+    },
+    {
+      "id": 5, "type": "timeseries", "title": "服务 · 按接口 5xx 比例（RED 的 E）",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum by (route) (rate(http_requests_total{code=~\"5..\"}[5m])) / sum by (route) (rate(http_requests_total[5m]))", "legendFormat": "{{route}}" }]
+    },
+    {
+      "id": 6, "type": "timeseries", "title": "服务 · 按接口 p50 / p99（RED 的 D）",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "histogram_quantile(0.5, sum by (le) (rate(http_request_duration_seconds_bucket[5m])))", "legendFormat": "p50" },
+        { "refId": "B", "expr": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket[5m])))", "legendFormat": "p99" }
+      ]
+    },
+    {
+      "id": 7, "type": "timeseries", "title": "资源 · CPU（USE 的 U）",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum(rate(node_cpu_seconds_total{mode!~\"idle|iowait\",cpu=~\"1\"}[5m])) / count(node_cpu_seconds_total{mode=\"idle\",cpu=~\"1\"})", "legendFormat": "enrolld 核忙碌比例" },
+        { "refId": "B", "expr": "rate(process_cpu_seconds_total{job=\"enrolld\"}[5m])", "legendFormat": "enrolld 进程 CPU 核数" }
+      ]
+    },
+    {
+      "id": 8, "type": "timeseries", "title": "资源 · 内存（USE 的 U）",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "node_memory_MemAvailable_bytes / 1048576", "legendFormat": "可用内存 MiB" },
+        { "refId": "B", "expr": "process_resident_memory_bytes{job=\"enrolld\"} / 1048576", "legendFormat": "enrolld RSS MiB" }
+      ]
+    },
+    {
+      "id": 9, "type": "timeseries", "title": "资源 · 磁盘（USE 的 U/S）",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "rate(node_disk_io_time_seconds_total{device=\"vda\"}[5m])", "legendFormat": "disk_util" },
+        { "refId": "B", "expr": "1000 * rate(node_disk_write_time_seconds_total{device=\"vda\"}[5m]) / rate(node_disk_writes_completed_total{device=\"vda\"}[5m])", "legendFormat": "w_await ms" },
+        { "refId": "C", "expr": "rate(node_disk_writes_completed_total{device=\"vda\"}[5m])", "legendFormat": "w/s" }
+      ]
+    }
+  ]
+}

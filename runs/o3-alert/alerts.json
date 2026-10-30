@@ -1,0 +1,1 @@
+{"status":"success","data":{"alerts":[{"labels":{"alertname":"EnrolldReadSLOBurnRateHigh","service":"enrolld","severity":"page"},"annotations":{"description":"1 分钟窗口内错误预算燃烧率超过 14.4×（约 1 小时耗尽 2% 的 30 天预算）","summary":"enrolld 读路径 SLO 燃烧率过高"},"state":"firing","activeAt":"2026-10-30T06:31:23.283539458Z","value":"9.905606051023034e-01"}]}}
