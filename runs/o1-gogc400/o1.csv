@@ -1,0 +1,3 @@
+step,target_rps,gc_cycles,gc_cpu_ms_per_s,rss_max_mb,rss_avg_mb,heap_max_mb,cpu_cores
+1,0,0,0,9.05078,8.48328,2.13503,0.00044075
+2,100,641.667,8.0009,23.5195,23.5045,13.2143,0.0932008
