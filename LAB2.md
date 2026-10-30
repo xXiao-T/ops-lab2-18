@@ -305,7 +305,7 @@ t1-light 第 2 阶段：客户端平均 11.62 ms，服务端平均 10.7813 ms（
 for: 30s
 ```
 
-阈值 0.144 对应燃烧率 14.4×（约 1 小时耗尽 2% 的 30 天预算），`severity: page`。**触发记录**：重启 Prometheus 载入规则后，以 422 请求/秒过载读路径（`bin/loadgen -url http://127.0.0.1:8080/api/courses/1 -rates 422 -step 150s`），规则在 14:31:23 进入 pending、14:31:53 变为 firing；`runs/o3-alert/alerts.json` 记录 `state=firing`、错误比例 0.9906（燃烧率约 99×，`runs/o3-alert/burn.json` 为 0.9916），`runs/o3-alert/rules.json` 记录规则 `health=ok`。过载结束后告警自动恢复。注意：为载入规则重启了 Prometheus，`/dev/shm` 中的时序数据已清空，但所有 `runs/*/red.csv`、`use.csv` 已在实验结束时落盘，不影响报告中的数据核对。
+阈值 0.144 对应燃烧率 14.4×（约 1 小时耗尽 2% 的 30 天预算），`severity: page`。**触发记录**：重启 Prometheus 载入规则后，以 422 请求/秒过载读路径（`bin/loadgen -url http://127.0.0.1:8080/api/courses/1 -rates 422 -step 150s`），规则在 14:31:23 进入 pending、14:31:53 变为 firing；`docs/o3-alert/alerts.json` 记录 `state=firing`、错误比例 0.9906（燃烧率约 99×，`docs/o3-alert/burn.json` 为 0.9916），`docs/o3-alert/rules.json` 记录规则 `health=ok`。过载结束后告警自动恢复。注意：为载入规则重启了 Prometheus，`/dev/shm` 中的时序数据已清空，但所有 `runs/*/red.csv`、`use.csv` 已在实验结束时落盘，不影响报告中的数据核对。
 
 **看板**：`deploy/dashboard.md` 给出三行九格的每一格查询，`deploy/grafana-dashboard.json` 是可直接导入 Grafana 的 9 面板看板（数据源选 Prometheus）。三行分别是：业务（选课成功率、读路径 SLI、在途/goroutine）、服务 RED（按接口 QPS、5xx 比例、p50/p99、inflight/连接池）、资源 USE（CPU、内存、磁盘 util/await/IOPS）。排障自上而下：先看业务成功率，再看哪个接口在排队，最后看哪个资源先饱和；容量规划自下而上：先算资源上限再换算业务量。
 
