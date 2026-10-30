@@ -1,0 +1,32 @@
+O2 网络实验记录（第 18 组）
+
+拓扑：同一 VPC（cn-east-3c，192.168.0.0/24）
+  A（服务端）：ecs-5bae，私网 192.168.0.129，x1.2u.2g，2 vCPU / 2 GiB，Ubuntu 20.04
+  B（压测端）：ecs-cc1d，私网 192.168.0.192，x1.2u.4g，2 vCPU / 4 GiB，Ubuntu 24.04
+  B 的 EIP 仅用于 SSH；压测全部走 VPC 私网，不经过公网/EIP 带宽。
+  A 的 8080 对 B 的私网地址可访问；未从公网访问。
+
+服务端 A：
+  cd /root/lab2
+  taskset -c 1 bin/enrolld -addr 0.0.0.0:8080
+  接口：GET /api/export?kb=256（每次 256 KiB 响应）
+
+压测端 B：
+  /root/loadgen -url 'http://192.168.0.129:8080/api/export?kb=256' \
+    -rates 50,100,200,300,400,500 -step 30s -out /root/o2-steps.csv
+  /root/loadgen ... -rates 600,800,1000 -step 20s -out /root/o2-steps2.csv
+  /root/loadgen ... -rates 1200,1300 -step 20s -out /root/o2-steps4.csv
+  /root/loadgen ... -rates 1500 -step 20s -out /root/o2-steps3.csv
+
+A 侧采集：
+  sar -n DEV 1 260 > /root/o2-sar.log
+  mpstat -P ALL 1 260 > /root/o2-mpstat.log
+  ss -tin（每 5 秒一次）> /root/o2-ss.log
+  第二轮：o2-sar2.log、o2-mpstat2.log、o2-ss2.log
+
+文件：
+  o2-steps*.csv        B 上 loadgen 的每个阶段原始结果
+  o2-loadgen*.log      B 上 loadgen 的进度、结果与警告
+  o2-sar*.log          A 的 sar -n DEV 每秒 eth0 读写字节与包数
+  o2-mpstat*.log       A 的每核 CPU（usr/sys/soft/idle）
+  o2-ss*.log           A 的 ss -tin 快照（含 bytes_retrans、retrans、lost、cwnd）
